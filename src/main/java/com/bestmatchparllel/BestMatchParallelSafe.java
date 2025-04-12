@@ -1,11 +1,9 @@
 package com.bestmatchparllel;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.ToDoubleFunction;
+
 import java.util.stream.Collectors;
 
-import com.bestmatch2.*;
-import com.bestmatch.Record;
+
 
 public class BestMatchParallelSafe {
 
@@ -96,7 +94,7 @@ public class BestMatchParallelSafe {
 //      side2.add(new Record(27, 2));
         
         //test case duplicate 
-        
+        side1.add(new Record(100, 1.5));
         side1.add(new Record(1, 3));
         side1.add(new Record(2, 4));
         side1.add(new Record(3, 3.5));
