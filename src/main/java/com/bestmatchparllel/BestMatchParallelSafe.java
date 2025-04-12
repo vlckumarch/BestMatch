@@ -1,28 +1,27 @@
-package com.bestmatch2;
+package com.bestmatchparllel;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
+import com.bestmatch2.*;
 import com.bestmatch.Record;
 
-public class BestMatchFinal {
+public class BestMatchParallelSafe {
 
     public static List<String> reconcile(List<Record> side1, List<Record> side2, double variance) {
-        List<MatchCandidate> allCandidates = new ArrayList<>();
+        // Step 1: Parallel scoring of all match candidates
+        List<MatchCandidate> allCandidates = side1.parallelStream()
+            .flatMap(s1 -> side2.stream()
+                .filter(s2 -> Math.abs(s1.amount - s2.amount) <= variance)
+                .map(s2 -> new MatchCandidate(s1, s2)))
+            .collect(Collectors.toList());
 
-        for (Record s1 : side1) {
-            for (Record s2 : side2) {
-                double diff = Math.abs(s1.amount - s2.amount);
-                if (diff <= variance) {
-                    allCandidates.add(new MatchCandidate(s1, s2));
-                }
-            }
-        }
+        // Step 2: Sort globally to prioritize best matches
+        allCandidates.sort(Comparator.<MatchCandidate>comparingDouble(m -> m.diff)
+        	    .thenComparingInt(m -> -m.side2.id));
 
-        // Sort by best match: lowest diff, then highest side2 id
-        allCandidates.sort(Comparator
-                .comparingDouble((MatchCandidate m) -> m.diff)
-                .thenComparingInt(m -> -m.side2.id));
-
+        // Step 3: Assign matches without duplicates (single-threaded)
         Map<Integer, Record> matchedSide1 = new HashMap<>();
         Set<Integer> usedSide2 = new HashSet<>();
 
@@ -36,6 +35,7 @@ public class BestMatchFinal {
             }
         }
 
+        // Step 4: Build final output
         List<String> results = new ArrayList<>();
 
         for (Record s1 : side1) {
@@ -47,7 +47,7 @@ public class BestMatchFinal {
             }
         }
 
-        // Add unmatched side2
+        // Step 5: Add unmatched Side2 records
         for (Record s2 : side2) {
             if (!usedSide2.contains(s2.id)) {
                 results.add("Side2: " + s2.id + " (" + s2.amount + ") <-> No Match");
@@ -66,22 +66,35 @@ public class BestMatchFinal {
 //          side1.add(new Record(i, (int) (Math.random() * 1000)));  // Random amounts
 //          side2.add(new Record(100000 + i, (int) (Math.random() * 1000)));  // Random amounts
 //      }
-              
-
+//         
+        
+        // Sample Test Case
 //        side1.add(new Record(1, 3));
 //        side1.add(new Record(2, 4));
-//        side1.add(new Record(3, 3.5));
+//        side1.add(new Record(3, 4.5));
 //        side1.add(new Record(10, 4.5));
 //        side1.add(new Record(11, 5.5));
-//        side1.add(new Record(12, 5.5));
 //
-////        side2.add(new Record(31, 3));
-//        side2.add(new Record(32, 4));
-//        side2.add(new Record(23, 3.5));
+//        side2.add(new Record(21, 3));
+//        side2.add(new Record(22, 4));
+//        side2.add(new Record(23, 5.5));
 //        side2.add(new Record(24, 4.5));
-//        side2.add(new Record(25, 4.5));
-//        side2.add(new Record(27, 2));
 
+        //test case set2
+//      side1.add(new Record(1, 3));
+//      side1.add(new Record(2, 4));
+//      side1.add(new Record(3, 3.5));
+////      side1.add(new Record(10, 4.5));
+////      side1.add(new Record(11, 5.5));
+//      side1.add(new Record(12, 5.5));
+//
+////      side2.add(new Record(31, 3));
+//      side2.add(new Record(32, 4));
+//      side2.add(new Record(23, 3.5));
+//      side2.add(new Record(24, 4.5));
+//      side2.add(new Record(25, 4.5));
+//      side2.add(new Record(27, 2));
+        
         //test case duplicate 
         
         side1.add(new Record(1, 3));
@@ -99,17 +112,18 @@ public class BestMatchFinal {
         side2.add(new Record(42, 5.5));
         side2.add(new Record(27, 2));
         
+
+        // Use variance
         double variance = 1.5;
 
-        long startTime = System.currentTimeMillis();
-        List<String> matches = reconcile(side1, side2, variance);
-        long endTime = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
+        List<String> results = reconcile(side1, side2, variance);
+        long end = System.currentTimeMillis();
 
-        System.out.println("Execution Time: " + (endTime - startTime) + " ms");
-        System.out.println("Total Matches: " + matches.stream().filter(s -> !s.contains("No Match")).count());
+        System.out.println("Execution Time: " + (end - start) + " ms");
+        System.out.println("Total Matches: " + results.stream().filter(s -> s.contains("<-> Side2")).count());
 
-        //matches.forEach(System.out::println);
-        matches.stream().limit(10).forEach(System.out::println);
-        
+        //results.forEach(System.out::println);
+        results.stream().limit(10).forEach(System.out::println);
     }
 }
